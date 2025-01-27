@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ETH EVM-Compatible Address Ownership Proof</title>
+    <title>ETH Message Signing and Verification</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Web3.js -->
@@ -14,20 +14,6 @@
         }
         .card {
             border-radius: 10px;
-        }
-        .top-right {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 10;
-        }
-        .content {
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .card-body {
-            padding: 20px;
         }
         .toast-container {
             position: fixed;
@@ -41,63 +27,48 @@
     </style>
 </head>
 <body>
-
-    <!-- Top Right Button and Address Display -->
-    <div class="top-right">
-        <button id="connectButton" class="btn btn-primary">Connect MetaMask Wallet</button>
-        <div id="addressDisplay" class="alert alert-info mt-3" role="alert">
-            Current Connected Address: <span id="userAddress">Not Connected</span>
-        </div>
-    </div>
-
-    <div class="container content">
-        <!-- Sign and Prove Ownership Card -->
+    <div class="container">
+        <!-- Sign Message Card -->
         <div class="card mb-4">
             <div class="card-header">
-                <h5>Sign and Prove Ownership</h5>
+                <h5>Sign a Message</h5>
             </div>
             <div class="card-body">
+                <!-- Private Key Input -->
+                <div class="mb-3">
+                    <label for="privateKeyInput" class="form-label">Private Key</label>
+                    <input type="text" class="form-control" id="privateKeyInput" placeholder="Enter your private key">
+                </div>
                 <!-- Message Input -->
                 <div class="mb-3">
-                    <label for="messageInputSign" class="form-label">Message to Sign</label>
-                    <input type="text" class="form-control" id="messageInputSign" placeholder="Enter message to sign" value="This is my wallet">
+                    <label for="messageInput" class="form-label">Message</label>
+                    <input type="text" class="form-control" id="messageInput" placeholder="Enter message to sign">
                 </div>
-
-                <button id="signButton" class="btn btn-success w-100" disabled>Sign and Prove Ownership</button>
+                <!-- Sign Button -->
+                <button id="signButton" class="btn btn-success w-100">Sign Message</button>
             </div>
         </div>
 
-        <!-- Signature for Verification Card -->
+        <!-- Verify Signature Card -->
         <div class="card">
             <div class="card-header">
                 <h5>Verify Signature</h5>
             </div>
             <div class="card-body">
-                <!-- Signature Input for Verification -->
+                <!-- Signature Input -->
                 <div class="mb-3">
-                    <label for="signatureInput" class="form-label">Paste Signature for Verification</label>
-                    <input type="text" class="form-control" id="signatureInput" placeholder="Paste signature here for verification">
+                    <label for="signatureInput" class="form-label">Signature</label>
+                    <input type="text" class="form-control" id="signatureInput" placeholder="Enter the signature">
                 </div>
-
-                <!-- Message Input for Verification -->
+                <!-- Message Input -->
                 <div class="mb-3">
-                    <label for="messageInput" class="form-label">Original Message for Verification</label>
-                    <input type="text" class="form-control" id="messageInput" placeholder="Original message to verify signature">
+                    <label for="verifyMessageInput" class="form-label">Message</label>
+                    <input type="text" class="form-control" id="verifyMessageInput" placeholder="Enter the original message">
                 </div>
-
-                <!-- Signer Address Input for Verification -->
-                <div class="mb-3">
-                    <label for="addressInput" class="form-label">Ethereum Address to Verify</label>
-                    <input type="text" class="form-control" id="addressInput" placeholder="Enter the Ethereum address to verify">
-                </div>
-
                 <!-- Verify Button -->
-                <div class="mb-3">
-                    <button id="verifyButton" class="btn btn-info w-100" >Verify Signature</button>
-                </div>
-
+                <button id="verifyButton" class="btn btn-info w-100">Verify Signature</button>
                 <!-- Verification Result -->
-                <div id="verifyResult" class="alert alert-info" role="alert"></div>
+                <div id="verifyResult" class="alert alert-info mt-3" role="alert" style="display: none;"></div>
             </div>
         </div>
     </div>
@@ -114,95 +85,9 @@
     </div>
 
     <script>
-        let web3;
-        let userAddress;
-        let message;
+        const web3 = new Web3();
 
-        // Check if MetaMask is available
-        if (typeof window.ethereum !== 'undefined') {
-            web3 = new Web3(window.ethereum);
-        } else {
-            showToast('Please install MetaMask', 'danger');
-        }
-
-        // Format Ethereum address to shortened version (0x12...56)
-        function formatAddress(address) {
-            return address ? address.slice(0, 6) + "..." + address.slice(-4) : "Not Connected";
-        }
-
-        // Connect Wallet
-        document.getElementById('connectButton').addEventListener('click', async () => {
-            try {
-                const accounts = await web3.eth.requestAccounts();
-                userAddress = accounts[0];
-                document.getElementById('userAddress').innerText = formatAddress(userAddress);
-                document.getElementById('addressDisplay').style.display = 'block';
-                document.getElementById('signButton').disabled = false;
-                showToast('Wallet connected successfully!', 'success');
-            } catch (error) {
-                console.error('Failed to connect wallet', error);
-                showToast('Failed to connect wallet. Please check MetaMask.', 'danger');
-            }
-        });
-
-        // Sign and Prove Ownership
-        document.getElementById('signButton').addEventListener('click', async () => {
-            try {
-                // Get message from the input field
-                message = document.getElementById('messageInputSign').value;
-
-                if (!message) {
-                    showToast('Please enter a message to sign.', 'warning');
-                    return;
-                }
-
-                // Use Web3.js to hash the message
-                const msgHash = web3.utils.sha3(message);
-                
-                // Sign the hashed message
-                const signature = await web3.eth.personal.sign(msgHash, userAddress);
-                
-                // Display the signature in the input box for verification
-                document.getElementById('signatureInput').value = signature;
-               // document.getElementById('verifyButton').disabled = false;
-                showToast('Signature generated successfully, copy it to verify.', 'success');
-            } catch (error) {
-                console.error('Signature failed', error);
-                showToast('Signature failed. Please try again.', 'danger');
-            }
-        });
-
-        // Verify Signature - Allow anyone to verify with address
-        document.getElementById('verifyButton').addEventListener('click', () => {
-            const signature = document.getElementById('signatureInput').value;
-            const inputMessage = document.getElementById('messageInput').value;
-            const enteredAddress = document.getElementById('addressInput').value;
-
-            if (!inputMessage || !signature || !enteredAddress) {
-                showToast('Please provide the message, signature, and Ethereum address to verify.', 'warning');
-                return;
-            }
-
-            // Use Web3.js to hash the message
-            const msgHash = web3.utils.sha3(inputMessage);
-
-            // Recover the address from the signature
-            const signer = web3.eth.accounts.recover(msgHash, signature);
-
-            const resultElement = document.getElementById('verifyResult');
-            if (signer.toLowerCase() === enteredAddress.toLowerCase()) {
-                resultElement.classList.remove('alert-danger');
-                resultElement.classList.add('alert-success');
-                resultElement.innerText = 'Signature verified successfully. The signer is the owner of this address!';
-            } else {
-                resultElement.classList.remove('alert-success');
-                resultElement.classList.add('alert-danger');
-                resultElement.innerText = 'Signature verification failed. Address mismatch!';
-            }
-            resultElement.style.display = 'block';
-        });
-
-        // Function to show Toasts
+        // Show toast notification
         function showToast(message, type) {
             const toastElement = document.getElementById('toast');
             const toastMessage = document.getElementById('toastMessage');
@@ -214,11 +99,61 @@
             const toast = new bootstrap.Toast(toastElement);
             toast.show();
         }
+
+        // Sign Message with Private Key
+        document.getElementById('signButton').addEventListener('click', () => {
+            const privateKey = document.getElementById('privateKeyInput').value.trim();
+            const message = document.getElementById('messageInput').value.trim();
+
+            if (!privateKey || !message) {
+                showToast('Please provide both private key and message.', 'warning');
+                return;
+            }
+
+            try {
+                const msgHash = web3.utils.sha3(message);
+                const { signature } = web3.eth.accounts.sign(msgHash, privateKey);
+
+                document.getElementById('signatureInput').value = signature;
+                showToast('Message signed successfully!', 'success');
+            } catch (error) {
+                console.error('Error signing message:', error);
+                showToast('Failed to sign the message. Check the private key.', 'danger');
+            }
+        });
+
+        // Verify Signature
+        document.getElementById('verifyButton').addEventListener('click', () => {
+            const signature = document.getElementById('signatureInput').value.trim();
+            const message = document.getElementById('verifyMessageInput').value.trim();
+
+            if (!signature || !message) {
+                showToast('Please provide both signature and message.', 'warning');
+                return;
+            }
+
+            try {
+                const msgHash = web3.utils.sha3(message);
+                const signerAddress = web3.eth.accounts.recover(msgHash, signature);
+
+                const resultElement = document.getElementById('verifyResult');
+                resultElement.style.display = 'block';
+                resultElement.classList.remove('alert-danger');
+                resultElement.classList.add('alert-success');
+                resultElement.innerText = `Signature verified! Signer Address: ${signerAddress}`;
+            } catch (error) {
+                console.error('Error verifying signature:', error);
+                const resultElement = document.getElementById('verifyResult');
+                resultElement.style.display = 'block';
+                resultElement.classList.remove('alert-success');
+                resultElement.classList.add('alert-danger');
+                resultElement.innerText = 'Failed to verify the signature.';
+            }
+        });
     </script>
 
-    <!-- Bootstrap JS and Toasts -->
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
-
 </body>
 </html>
